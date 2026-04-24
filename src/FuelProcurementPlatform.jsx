@@ -7077,8 +7077,10 @@ export default function FuelProcurementPlatform() {
     }
   }, [activeTab, planFilter]);
   // Today's Best Buy state — which cell is expanded to show full alternatives
-  const [bestBuyExpanded, setBestBuyExpanded] = useState(null); // "terminalId:grade" or null
-  const [bestBuyFilter, setBestBuyFilter] = useState("all"); // "all" | "contract" | "spot"
+  const [bestBuyExpanded, setBestBuyExpanded] = useState(null);
+  const [bestBuyFilter, setBestBuyFilter] = useState("all");
+  const [bestBuyView, setBestBuyView] = useState("actions");
+  const [bestBuyGrade, setBestBuyGrade] = useState("all"); // "all" | "Regular" | "Premium" | "Diesel"
   // Strategy tab sub-tabs
   const [strategyTab, setStrategyTab] = useState("contractspot"); // contractspot | hedging | disruption
   // Contract/spot mix what-if slider — controls the projected contract share
@@ -8409,98 +8411,260 @@ Respond with ONLY valid JSON (no markdown):
 
     return (
       <div style={{display:"flex", flexDirection:"column", gap:14}}>
-        {/* Header banner — aggregate savings */}
+
+        {/* Header — clean 3-stat strip */}
         <div style={{
-          background: totalSavingsPerDay > 1000 ? (darkMode?"rgba(22,163,74,.06)":"#F0FDF4") : C.cardBg,
-          border: `1px solid ${totalSavingsPerDay > 1000 ? "rgba(22,163,74,.35)" : C.cardBord}`,
-          borderRadius:10, padding:"14px 18px",
+          display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr",
+          background:C.cardBg, border:`1px solid ${C.cardBord}`,
+          borderRadius:12, overflow:"hidden",
         }}>
-          <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap"}}>
-            <div>
-              <div style={{fontSize:11, fontWeight:800, letterSpacing:.6, textTransform:"uppercase",
-                color: totalSavingsPerDay > 1000 ? "#16A34A" : C.textMut, fontFamily:FONT}}>
-                {totalSavingsPerDay > 0
-                  ? `Save $${Math.round(totalSavingsPerDay).toLocaleString()}/day at cheapest supplier`
-                  : "Primaries cheapest today — no savings available"}
-              </div>
-              <div style={{fontSize:11.5, color:C.textSec, marginTop:4, fontFamily:FONT}}>
-                {meaningfulSavingsCount}/18 combos beat pick by &gt;$0.005/gal
-                {spotCheaperCount > 0 && <> · <strong style={{color:"#EA580C"}}>spot cheaper at {spotCheaperCount}</strong></>}
-              </div>
+          {/* Stat 1 — daily savings */}
+          <div style={{padding:"20px 24px"}}>
+            <div style={{fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.6, textTransform:"uppercase", marginBottom:6}}>Daily Savings Available</div>
+            <div style={{fontSize:28, fontWeight:900, color: totalSavingsPerDay>1000?"#16A34A":C.textPri, fontFamily:"Arial,sans-serif", lineHeight:1}}>
+              ${Math.round(totalSavingsPerDay).toLocaleString()}
             </div>
-            <div style={{display:"flex", gap:10, alignItems:"flex-start", flexWrap:"wrap"}}>
-              {/* Top opportunity callout */}
-              {topOpp && (
-                <div style={{
-                  padding:"8px 14px", borderRadius:8,
-                  background: darkMode?"rgba(22,163,74,.08)":"#F0FDF4",
-                  border:`1px solid rgba(22,163,74,.35)`, textAlign:"right",
-                }}>
-                  <div style={{fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.4, textTransform:"uppercase"}}>Top opportunity</div>
-                  <div style={{fontSize:13, fontWeight:900, color:"#16A34A", fontFamily:FONT, lineHeight:1.1, marginTop:2}}>
-                    {topOpp.t.short} · {topOpp.g}
-                  </div>
-                  <div style={{fontSize:9.5, color:"#16A34A", fontWeight:700, marginTop:2}}>
-                    ${Math.round(topOpp.dailySavings).toLocaleString()}/day · ${topOpp.savingsCpg.toFixed(4)}/gal
-                  </div>
-                  <div style={{fontSize:9, color:C.textMut, marginTop:1}}>
-                    route to {topOpp.best.supplier.short}{topOpp.best.isSpot?" (spot)":""}
-                  </div>
-                </div>
-              )}
-              {/* Monthly savings tile */}
-              <div style={{
-                padding:"8px 14px", borderRadius:8,
-                background: darkMode?"rgba(200,164,74,.10)":"#FFF9E6",
-                border:`1px solid ${C.gold}40`, textAlign:"right",
-              }}>
-                <div style={{fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.4, textTransform:"uppercase"}}>
-                  Monthly savings potential
-                </div>
-                <div style={{fontSize:22, fontWeight:900, color:C.gold, fontFamily:FONT, lineHeight:1}}>
-                  ${Math.round(totalSavingsPerDay * 30 / 1000).toLocaleString()}K
-                </div>
-                <div style={{fontSize:9, color:C.textMut, marginTop:2}}>at current rack spreads</div>
+            <div style={{fontSize:10, color:C.textSec, marginTop:6}}>
+              {meaningfulSavingsCount} of {TERMINALS.length * 3} combos beat current pick by &gt;$0.005/gal
+              {spotCheaperCount > 0 && <span style={{color:"#EA580C", fontWeight:700}}> · spot cheaper at {spotCheaperCount}</span>}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{background:C.cardBord}}/>
+
+          {/* Stat 2 — top opportunity */}
+          <div style={{padding:"20px 24px"}}>
+            <div style={{fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.6, textTransform:"uppercase", marginBottom:6}}>Top Opportunity Today</div>
+            {topOpp ? (<>
+              <div style={{fontSize:16, fontWeight:900, color:"#16A34A", fontFamily:"Arial,sans-serif", lineHeight:1, marginBottom:4}}>
+                {topOpp.t.short} · {topOpp.g}
               </div>
+              <div style={{fontSize:12, fontWeight:700, color:"#16A34A", fontFamily:"Arial,sans-serif", marginBottom:4}}>
+                ${Math.round(topOpp.dailySavings).toLocaleString()}/day · ${topOpp.savingsCpg.toFixed(4)}/gal
+              </div>
+              <div style={{fontSize:10, color:C.textSec}}>
+                Route to <strong>{topOpp.best.supplier.short}</strong>{topOpp.best.isSpot?" (spot)":""}
+              </div>
+            </>) : (
+              <div style={{fontSize:12, color:C.textMut, marginTop:4}}>Primaries are cheapest today</div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div style={{background:C.cardBord}}/>
+
+          {/* Stat 3 — monthly potential */}
+          <div style={{padding:"20px 24px"}}>
+            <div style={{fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.6, textTransform:"uppercase", marginBottom:6}}>Monthly Savings Potential</div>
+            <div style={{fontSize:28, fontWeight:900, color:C.gold, fontFamily:"Arial,sans-serif", lineHeight:1}}>
+              ${Math.round(totalSavingsPerDay * 30 / 1000).toLocaleString()}K
+            </div>
+            <div style={{fontSize:10, color:C.textSec, marginTop:6}}>
+              at current rack spreads · {TERMINALS.length} terminals active
             </div>
           </div>
         </div>
 
-        {/* Filter toggle + legend */}
-        <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
-          <div style={{display:"flex", gap:3, background:C.cardBg, border:`1px solid ${C.cardBord}`, borderRadius:7, padding:3}}>
-            {[["all","All Sources"],["contract","Contract Only"],["spot","Spot Only"]].map(([val,label])=>(
-              <button key={val} onClick={()=>setBestBuyFilter(val)}
-                style={{padding:"4px 12px", borderRadius:5, border:"none", cursor:"pointer", fontFamily:FONT,
-                  fontSize:10, fontWeight:bestBuyFilter===val?700:400,
-                  background:bestBuyFilter===val?"#0D1B2A":"transparent",
-                  color:bestBuyFilter===val?C.gold:C.textSec, transition:"all .12s"}}>
-                {label}
-              </button>
-            ))}
+        {/* Filter toggle + view toggle + legend */}
+        <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap", justifyContent:"space-between"}}>
+          <div style={{display:"flex", gap:8, alignItems:"center"}}>
+            <div style={{display:"flex", gap:3, background:C.cardBg, border:`1px solid ${C.cardBord}`, borderRadius:7, padding:3}}>
+              {[["all","All Sources"],["contract","Contract Only"],["spot","Spot Only"]].map(([val,label])=>(
+                <button key={val} onClick={()=>setBestBuyFilter(val)}
+                  style={{padding:"4px 12px", borderRadius:5, border:"none", cursor:"pointer", fontFamily:FONT,
+                    fontSize:10, fontWeight:bestBuyFilter===val?700:400,
+                    background:bestBuyFilter===val?"#0D1B2A":"transparent",
+                    color:bestBuyFilter===val?C.gold:C.textSec, transition:"all .12s"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Grade filter */}
+            <div style={{display:"flex", gap:3, background:C.cardBg, border:`1px solid ${C.cardBord}`, borderRadius:7, padding:3}}>
+              {[["all","All Grades"],["Regular","Regular"],["Premium","Premium"],["Diesel","Diesel"]].map(([val,label])=>(
+                <button key={val} onClick={()=>setBestBuyGrade(val)}
+                  style={{padding:"4px 12px", borderRadius:5, border:"none", cursor:"pointer", fontFamily:FONT,
+                    fontSize:10, fontWeight:bestBuyGrade===val?700:400,
+                    background:bestBuyGrade===val?"#0D1B2A":"transparent",
+                    color:bestBuyGrade===val?C.gold:C.textSec, transition:"all .12s"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* View toggle */}
+            <div style={{display:"flex", gap:2, background:C.cardBg, border:`1px solid ${C.cardBord}`, borderRadius:7, padding:3}}>
+              {[["actions","Today's Actions"],["grid","Full Matrix"]].map(([val,label])=>(
+                <button key={val} onClick={()=>setBestBuyView(val)}
+                  style={{padding:"4px 12px", borderRadius:5, border:"none", cursor:"pointer", fontFamily:FONT,
+                    fontSize:10, fontWeight:bestBuyView===val?700:400,
+                    background:bestBuyView===val?"#0D1B2A":"transparent",
+                    color:bestBuyView===val?C.gold:C.textSec, transition:"all .12s"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{display:"flex", gap:12, fontSize:9, color:C.textMut, fontFamily:FONT, alignItems:"center"}}>
-            <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#16A34A", fontWeight:800}}>↑</span> price rising this week</span>
-            <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#DC2626", fontWeight:800}}>↓</span> price falling</span>
-            <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#DC2626", fontSize:8}}>●</span> above portfolio avg</span>
-            <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#16A34A", fontSize:8}}>●</span> below portfolio avg</span>
-          </div>
+          {bestBuyView === "grid" && (
+            <div style={{display:"flex", gap:12, fontSize:9, color:C.textMut, fontFamily:FONT, alignItems:"center"}}>
+              <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#16A34A", fontWeight:800}}>↑</span> price rising</span>
+              <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#DC2626", fontWeight:800}}>↓</span> price falling</span>
+              <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#DC2626", fontSize:8}}>●</span> above avg</span>
+              <span style={{display:"flex", alignItems:"center", gap:4}}><span style={{color:"#16A34A", fontSize:8}}>●</span> below avg</span>
+            </div>
+          )}
         </div>
+
+        {/* ── ACTIONS VIEW ─────────────────────────────────────────────────── */}
+        {bestBuyView === "actions" && (() => {
+          // Build ranked action list — one row per terminal×grade where there's
+          // a meaningful decision: switch supplier, spot opportunity, or commit risk
+          const actions = [];
+          TERMINALS.forEach(t => {
+            ["Regular","Premium","Diesel"].filter(g => bestBuyGrade === "all" || g === bestBuyGrade).forEach(g => {
+              const opts = filteredCell(t.id, g);
+              if (!opts || opts.length === 0) return;
+              const best = opts[0];
+              const second = opts[1];
+              const gradeShare = g==="Regular"?0.55:g==="Premium"?0.20:0.25;
+              const dailyVol = (TYPICAL_DAILY_VOL[t.id]||200_000) * gradeShare;
+              const savingsCpg = second ? second.landed - best.landed : 0;
+              const dailySavings = savingsCpg * dailyVol;
+              const suppMtd = mtdLiftPct[best.supplier.id];
+              const commitAtRisk = suppMtd !== undefined && suppMtd < 0.88;
+              const spotWin = best.isSpot;
+              const meaningfulSaving = savingsCpg >= MEANINGFUL_SAVINGS_CPG;
+              const trend = sevenDayTrend[t.id]?.[g] || 0;
+              const trendUp = trend > 0.002;
+              // Priority: 1=commit at risk+saving, 2=spot win, 3=meaningful saving, 4=trend alert
+              const priority = commitAtRisk && meaningfulSaving ? 1
+                             : spotWin ? 2
+                             : meaningfulSaving ? 3
+                             : trendUp && dailySavings > 50 ? 4 : 0;
+              if (priority > 0) {
+                actions.push({ t, g, best, second, savingsCpg, dailySavings, suppMtd, commitAtRisk, spotWin, meaningfulSaving, trendUp, priority, dailyVol });
+              }
+            });
+          });
+          actions.sort((a,b) => a.priority - b.priority || b.dailySavings - a.dailySavings);
+
+          if (actions.length === 0) return (
+            <div style={{textAlign:"center", padding:"40px 20px", color:C.textMut, fontFamily:FONT, fontSize:12}}>
+              No actionable opportunities today — all primaries are cheapest across the board.
+            </div>
+          );
+
+          return (
+            <div style={{display:"flex", flexDirection:"column", gap:8}}>
+              {actions.map((a, ai) => {
+                const brand = supplierBrand(a.best.supplier.name);
+                const priorityColor = a.priority===1?"#DC2626":a.priority===2?"#EA580C":a.priority===3?"#16A34A":"#F59E0B";
+                const priorityLabel = a.priority===1?"COMMIT RISK + SAVINGS":a.priority===2?"SPOT CHEAPER":a.priority===3?"SAVINGS OPPORTUNITY":"PRICE RISING";
+                const zone = TERMINAL_ZONE[a.t.id];
+                return (
+                  <div key={ai} style={{
+                    background:C.cardBg, border:`1px solid ${C.cardBord}`,
+                    borderRadius:10, padding:"14px 18px",
+                    display:"flex", alignItems:"center", gap:16, flexWrap:"wrap",
+                  }}>
+                    {/* Priority tag */}
+                    <div style={{flexShrink:0, minWidth:160}}>
+                      <div style={{
+                        display:"inline-flex", alignItems:"center", gap:5,
+                        background:`${priorityColor}18`, border:`1px solid ${priorityColor}50`,
+                        borderRadius:5, padding:"3px 8px", marginBottom:6,
+                      }}>
+                        <div style={{width:6, height:6, borderRadius:"50%", background:priorityColor, flexShrink:0}}/>
+                        <span style={{fontSize:8.5, fontWeight:800, color:priorityColor, letterSpacing:.5, textTransform:"uppercase"}}>
+                          {priorityLabel}
+                        </span>
+                      </div>
+                      <div style={{display:"flex", alignItems:"center", gap:6}}>
+                        <ZoneBadge terminalId={a.t.id}/>
+                        <span style={{fontSize:13, fontWeight:800, color:C.textPri, fontFamily:FONT}}>
+                          {a.t.short} · {a.g}
+                        </span>
+                      </div>
+                      <div style={{fontSize:9.5, color:C.textMut, marginTop:2}}>
+                        {a.t.name.split(",")[0]} · {((a.dailyVol)/1000).toFixed(0)}K gal/day
+                      </div>
+                    </div>
+
+                    {/* Logo + price */}
+                    <div style={{flexShrink:0, display:"flex", alignItems:"center", gap:14}}>
+                      <SupplierLogo supplierName={a.best.supplier.name} supplierShort={a.best.supplier.short} size={36}/>
+                      <div>
+                        <div style={{fontSize:9, color:C.textMut, marginBottom:2}}>
+                          {a.best.supplier.short}{a.best.isSpot?" · SPOT":""}
+                        </div>
+                        <div style={{fontSize:22, fontWeight:900, color:C.textPri, fontFamily:"Arial,sans-serif", lineHeight:1}}>
+                          ${a.best.landed.toFixed(4)}
+                        </div>
+                        <div style={{fontSize:9, color:C.textMut, marginTop:2}}>landed/gal</div>
+                      </div>
+                    </div>
+
+                    {/* Savings / context */}
+                    <div style={{flex:1, minWidth:160}}>
+                      {a.meaningfulSaving && (
+                        <div style={{marginBottom:6}}>
+                          <span style={{fontSize:15, fontWeight:800, color:"#16A34A", fontFamily:"Arial,sans-serif"}}>
+                            ${Math.round(a.dailySavings).toLocaleString()}/day
+                          </span>
+                          <span style={{fontSize:9.5, color:C.textMut, marginLeft:6}}>
+                            vs {a.second?.supplier.short} at ${a.second?.landed.toFixed(4)}
+                          </span>
+                        </div>
+                      )}
+                      {a.commitAtRisk && (
+                        <div style={{fontSize:9.5, color:"#DC2626", fontWeight:700, marginBottom:4}}>
+                          MTD {((a.suppMtd||0)*100).toFixed(0)}% of commit — routing here helps close the gap
+                        </div>
+                      )}
+                      {a.trendUp && !a.meaningfulSaving && (
+                        <div style={{fontSize:9.5, color:"#F59E0B", fontWeight:700}}>
+                          Rack up ${Math.abs(sevenDayTrend[a.t.id]?.[a.g]||0).toFixed(3)}/gal this week — consider locking volume now
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action button */}
+                    <button onClick={()=>{
+                      setPlanFilter({
+                        terminalId:a.t.id, grade:a.g,
+                        supplierShort:a.best.supplier.short,
+                        reason:"route-loads",
+                        message:`Routing ${a.g} loads to ${a.best.supplier.name} at ${a.t.name} — ${a.priorityLabel}`,
+                      });
+                      setActiveTab("plan");
+                      addToast(`Filtered to ${a.t.short} ${a.g} loads`, "info");
+                    }} style={{
+                      padding:"10px 20px", borderRadius:8, border:"none",
+                      background:"#3E6387", color:"#fff",
+                      fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:FONT,
+                      whiteSpace:"nowrap", flexShrink:0,
+                    }}>
+                      Route loads →
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Grid — terminals down, grades across */}
+        {bestBuyView === "grid" && (
         <div style={{background:C.cardBg, border:`1px solid ${C.cardBord}`, borderRadius:10, overflow:"hidden"}}>
           {/* Column headers */}
           <div style={{
             display:"grid",
-            gridTemplateColumns:"180px 1fr 1fr 1fr 1fr",
-            gap:1, padding:0,
-            background: darkMode?"rgba(255,255,255,.03)":"#FAFBFD",
-            borderBottom:`1px solid ${C.cardBord}`,
+            gridTemplateColumns:`200px ${["Regular","Plus","Premium","Diesel"].filter(g => bestBuyGrade==="all"||g===bestBuyGrade||g==="Plus").map(()=>"1fr").join(" ")}`,
           }}>
             <div style={{padding:"10px 14px", fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.5, textTransform:"uppercase", fontFamily:FONT}}>
               Terminal
             </div>
-            {["Regular","Plus","Premium","Diesel"].map(g => (
+            {["Regular","Plus","Premium","Diesel"].filter(g => bestBuyGrade === "all" || g === bestBuyGrade || g === "Plus").map(g => (
               <div key={g} style={{padding:"10px 14px", fontSize:9, fontWeight:800, color:C.textMut, letterSpacing:.5, textTransform:"uppercase", fontFamily:FONT, textAlign:"left"}}>
                 {g}
               </div>
@@ -8514,14 +8678,14 @@ Respond with ONLY valid JSON (no markdown):
                 {/* Terminal row — 4 grade cells */}
                 <div style={{
                   display:"grid",
-                  gridTemplateColumns:"180px 1fr 1fr 1fr 1fr",
+                  gridTemplateColumns:`200px ${["Regular","Plus","Premium","Diesel"].filter(g=>bestBuyGrade==="all"||g===bestBuyGrade||g==="Plus").map(()=>"1fr").join(" ")}`,
                   gap:1,
                   background: darkMode?"rgba(255,255,255,.02)":"#FFFFFF",
                   borderBottom: !isLastTerm ? `1px solid ${C.cardBord}` : "none",
                 }}>
                   {/* Terminal label */}
-                  <div style={{padding:"14px", display:"flex", flexDirection:"column", justifyContent:"center", gap:2, borderRight:`1px solid ${C.cardBord}`}}>
-                    <div style={{fontSize:12, fontWeight:800, color:C.textPri, fontFamily:FONT}}>
+                  <div style={{padding:"12px 14px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3, borderRight:`1px solid ${C.cardBord}`}}>
+                    <div style={{fontSize:12, fontWeight:800, color:C.textPri, fontFamily:FONT, display:"flex", alignItems:"center", gap:5}}>
                       <ZoneBadge terminalId={t.id}/> {t.short} · {t.name.split(",")[0]}
                     </div>
                     <div style={{fontSize:9.5, color:C.textMut}}>
@@ -8530,7 +8694,7 @@ Respond with ONLY valid JSON (no markdown):
                     {terminalWinner[t.id] && (() => {
                       const winSupplier = TERMINAL_SUPPLIERS.find(s => s.short === terminalWinner[t.id].short);
                       return (
-                        <div style={{marginTop:4, fontSize:8.5, color:C.textSec, fontFamily:FONT, display:"flex", alignItems:"center", gap:4}}>
+                        <div style={{marginTop:2, fontSize:8.5, color:C.textSec, fontFamily:FONT, display:"flex", alignItems:"center", gap:4}}>
                           {winSupplier
                             ? <SupplierLogo supplierName={winSupplier.name} supplierShort={winSupplier.short} size={14}/>
                             : <span style={{fontWeight:700, color:C.gold}}>{terminalWinner[t.id].short}</span>}
@@ -8540,20 +8704,20 @@ Respond with ONLY valid JSON (no markdown):
                     })()}
                   </div>
                   {/* Grade cells */}
-                  {["Regular","Plus","Premium","Diesel"].map(g => {
+                  {["Regular","Plus","Premium","Diesel"].filter(g => bestBuyGrade === "all" || g === bestBuyGrade || g === "Plus").map(g => {
                     const cellKey = `${t.id}:${g}`;
                     const isExpanded = bestBuyExpanded === cellKey;
                     // Plus cell is special (blended)
                     if (g === "Plus") {
                       const plus = cells[t.id].Plus;
-                      if (!plus) return <div key={g} style={{padding:"14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none"}}/>;
+                      if (!plus) return <div key={g} style={{padding:"12px 14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none"}}/>;
                       return (
                         <div key={g}
                           style={{
-                            padding:"10px 14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none",
+                            padding:"12px 14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none",
                             background: darkMode?"rgba(13,148,136,.04)":"#F0FDFA",
                           }}>
-                          <div style={{display:"flex", alignItems:"baseline", gap:5, marginBottom:4}}>
+                          <div style={{display:"flex", alignItems:"baseline", gap:5, marginBottom:6}}>
                             <span style={{
                               fontSize:8.5, fontWeight:800, padding:"1px 5px", borderRadius:3,
                               background: darkMode?"rgba(13,148,136,.12)":"#F0FDFA",
@@ -8575,7 +8739,7 @@ Respond with ONLY valid JSON (no markdown):
                     // Regular / Premium / Diesel — use filteredCell
                     const opts = filteredCell(t.id, g);
                     if (!opts || opts.length === 0) return (
-                      <div key={g} style={{padding:"10px 14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none",
+                      <div key={g} style={{padding:"12px 14px", borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none",
                         display:"flex", alignItems:"center", justifyContent:"center"}}>
                         <span style={{fontSize:9.5, color:C.textMut, fontStyle:"italic"}}>
                           {bestBuyFilter==="spot"?"no spot":"no contract"}
@@ -8604,7 +8768,7 @@ Respond with ONLY valid JSON (no markdown):
                       <div key={g}
                         onClick={()=>setBestBuyExpanded(isExpanded ? null : cellKey)}
                         style={{
-                          padding:"10px 14px",
+                          padding:"12px 14px",
                           borderRight: g !== "Diesel" ? `1px solid ${C.cardBord}` : "none",
                           cursor:"pointer", transition:"background .12s",
                           background: isExpanded
@@ -8614,7 +8778,7 @@ Respond with ONLY valid JSON (no markdown):
                         onMouseEnter={e=>{ if (!isExpanded) e.currentTarget.style.background = darkMode?"rgba(255,255,255,.02)":"#FAFBFD"; }}
                         onMouseLeave={e=>{ e.currentTarget.style.background = isExpanded ? (darkMode?"rgba(200,164,74,.06)":"#F8FAFB") : (heatColor||"transparent"); }}
                         >
-                        <div style={{display:"flex", alignItems:"center", gap:5, marginBottom:4}}>
+                        <div style={{display:"flex", alignItems:"center", gap:5, marginBottom:5}}>
                           {(() => {
                             const brand = supplierBrand(best.supplier.name);
                             return (
@@ -8645,25 +8809,24 @@ Respond with ONLY valid JSON (no markdown):
                             {isExpanded ? "▾" : "▸"}
                           </span>
                         </div>
-                        <div style={{fontSize:14, fontWeight:800, color:C.textPri, fontFamily:"Arial,sans-serif"}}>
+                        <div style={{fontSize:14, fontWeight:800, color:C.textPri, fontFamily:"Arial,sans-serif", marginBottom:5}}>
                           ${best.landed.toFixed(4)}
                         </div>
                         {savingsCpg > 0 ? (
-                          <div style={{fontSize:9.5, color: savingsCpg >= MEANINGFUL_SAVINGS_CPG ? "#16A34A" : C.textMut, fontWeight: savingsCpg >= MEANINGFUL_SAVINGS_CPG ? 700 : 500, marginTop:3, fontFamily:"Arial,sans-serif"}}>
+                          <div style={{fontSize:9.5, color: savingsCpg >= MEANINGFUL_SAVINGS_CPG ? "#16A34A" : C.textMut, fontWeight: savingsCpg >= MEANINGFUL_SAVINGS_CPG ? 700 : 500, marginBottom:4, fontFamily:"Arial,sans-serif"}}>
                             save ${savingsCpg.toFixed(4)}/gal
                             {dailySavings >= 100 && <span style={{color:"#16A34A"}}> · ${Math.round(dailySavings).toLocaleString()}/day</span>}
                           </div>
                         ) : (
-                          <div style={{fontSize:9.5, color:C.textMut, marginTop:3}}>only option</div>
+                          <div style={{fontSize:9.5, color:C.textMut, marginBottom:4}}>only option</div>
                         )}
                         {best.isSpot && (
-                          <div style={{fontSize:8.5, color:"#EA580C", fontWeight:700, marginTop:3, letterSpacing:.3}}>
+                          <div style={{fontSize:8.5, color:"#EA580C", fontWeight:700, marginBottom:3, letterSpacing:.3}}>
                             SPOT CHEAPER THAN CONTRACT
                           </div>
                         )}
-                        {/* MTD lift badge */}
                         {suppMtd !== undefined && (
-                          <div style={{marginTop:4, fontSize:8.5, fontFamily:"Arial,sans-serif",
+                          <div style={{marginTop:3, fontSize:8.5, fontFamily:"Arial,sans-serif",
                             color: suppMtd < 0.88 ? "#DC2626" : suppMtd > 1.05 ? "#F59E0B" : C.textMut}}>
                             MTD {(suppMtd*100).toFixed(0)}% of commit
                           </div>
@@ -8800,16 +8963,17 @@ Respond with ONLY valid JSON (no markdown):
             );
           })}
         </div>
+        )} {/* end bestBuyView === "grid" */}
 
-        {/* Methodology footer */}
-        <div style={{
+        {/* Methodology footer — grid view only */}
+        {bestBuyView === "grid" && <div style={{
           padding:"10px 14px", borderRadius:8,
           background: darkMode?"rgba(255,255,255,.02)":"#FAFBFD",
           border:`1px dashed ${C.cardBord}`,
           fontSize:10, color:C.textMut, lineHeight:1.5, fontFamily:FONT,
         }}>
           <strong style={{color:C.textSec}}>How to read this page:</strong> each cell shows the cheapest supplier at that terminal for that grade, landed cost per gallon (rack + contract differential or spot premium), and savings per gallon vs the next-cheapest option. "Meaningful" savings threshold is $0.005/gal — below that, dispatch operational cost usually exceeds the gain. <strong style={{color:"#EA580C"}}>Spot cheaper than contract</strong> signals short-term arbitrage opportunity but comes with allocation risk and may underlift contract commitments — cross-reference Contracts tab before acting. Daily savings assume typical terminal volume × grade share (55% Reg / 20% Prem / 25% Diesel). Plus is blended 50/50 from the cheapest Regular and cheapest Premium suppliers at each terminal.
-        </div>
+        </div>}
       </div>
     );
   };
